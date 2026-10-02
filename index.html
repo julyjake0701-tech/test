@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="간단한 2문항 설문 플랫폼" />
+  <title>2문항 설문 플랫폼</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #182033;
+      --muted: #697386;
+      --line: #e6eaf0;
+      --accent: #4f46e5;
+      --accent-soft: #eef2ff;
+      --success: #10b981;
+      --danger: #ef4444;
+      --shadow: 0 16px 40px rgba(24, 32, 51, 0.08);
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", Arial, sans-serif;
+      background: linear-gradient(180deg, #eef2ff 0, var(--bg) 280px);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .container { width: min(920px, calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 64px 0 28px; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 12px; border-radius: 999px;
+      background: rgba(255,255,255,.75); border: 1px solid rgba(79,70,229,.12);
+      color: var(--accent); font-weight: 700; font-size: 13px;
+    }
+    h1 { margin: 18px 0 10px; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spacing: -1.5px; }
+    header p { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.7; }
+
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 22px;
+      box-shadow: var(--shadow); margin-bottom: 22px;
+    }
+    .survey-card { padding: 28px; }
+    .question + .question { margin-top: 32px; padding-top: 30px; border-top: 1px solid var(--line); }
+    .question-number { color: var(--accent); font-size: 13px; font-weight: 800; margin-bottom: 7px; }
+    .question-title { margin: 0 0 16px; font-size: 20px; line-height: 1.45; letter-spacing: -.3px; }
+    .options { display: grid; gap: 11px; }
+    .option { position: relative; }
+    .option input { position: absolute; opacity: 0; pointer-events: none; }
+    .option label {
+      display: block; padding: 15px 16px; border: 1px solid var(--line); border-radius: 14px;
+      cursor: pointer; transition: .18s ease; background: #fff;
+    }
+    .option label:hover { border-color: #c7cffd; background: #fafaff; transform: translateY(-1px); }
+    .option input:checked + label {
+      border-color: var(--accent); background: var(--accent-soft); color: #312e81; font-weight: 700;
+      box-shadow: inset 0 0 0 1px var(--accent);
+    }
+    .submit-row { display: flex; justify-content: flex-end; margin-top: 30px; }
+    button {
+      border: 0; border-radius: 13px; padding: 14px 22px; background: var(--accent); color: white;
+      font-size: 15px; font-weight: 800; cursor: pointer; box-shadow: 0 8px 18px rgba(79,70,229,.24);
+      transition: .18s ease;
+    }
+    button:hover { transform: translateY(-1px); filter: brightness(.98); }
+    button:active { transform: translateY(0); }
+    .error { margin-top: 12px; color: var(--danger); font-size: 14px; display: none; }
+
+    #resultSection { display: none; }
+    .result-head { padding: 26px 28px 0; }
+    .result-head h2 { margin: 0 0 8px; font-size: 24px; }
+    .result-head p { margin: 0; color: var(--muted); }
+    .charts { padding: 24px 28px 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    .chart-card { border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
+    .chart-card h3 { margin: 0 0 18px; font-size: 16px; line-height: 1.5; }
+    .bar-list { display: grid; gap: 15px; }
+    .bar-label { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; margin-bottom: 7px; }
+    .bar-label span:first-child { min-width: 0; overflow-wrap: anywhere; }
+    .bar-label span:last-child { font-weight: 800; color: var(--accent); }
+    .bar-track { height: 10px; background: #edf0f5; border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; width: 0; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: inherit; transition: width .6s ease; }
+    .selected-summary {
+      margin: 24px 28px 0; padding: 16px 18px; background: #f8fafc; border: 1px solid var(--line);
+      border-radius: 14px; font-size: 14px; line-height: 1.7;
+    }
+    .selected-summary strong { color: var(--accent); }
+    .result-actions { padding: 0 28px 28px; display: flex; gap: 10px; }
+    .secondary { background: #fff; color: var(--text); border: 1px solid var(--line); box-shadow: none; }
+    footer { padding: 20px 0 50px; text-align: center; color: #8a93a3; font-size: 13px; }
+
+    @media (max-width: 720px) {
+      header { padding-top: 40px; }
+      .survey-card { padding: 22px; }
+      .charts { grid-template-columns: 1fr; padding: 22px; }
+      .result-head { padding: 22px 22px 0; }
+      .selected-summary { margin-left: 22px; margin-right: 22px; }
+      .result-actions { padding: 0 22px 22px; }
+      .submit-row { justify-content: stretch; }
+      .submit-row button, .result-actions button { width: 100%; }
+      .result-actions { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <span class="eyebrow">● Survey Platform</span>
+      <h1>간단한 2문항 설문</h1>
+      <p>두 질문에 답한 뒤 제출하면, 응답 결과를 그래프로 확인할 수 있습니다.</p>
+    </header>
+
+    <main>
+      <section class="card survey-card">
+        <form id="surveyForm" novalidate>
+          <div class="question">
+            <div class="question-number">QUESTION 01</div>
+            <h2 class="question-title">평소 몇 시에 잠에 드나요?</h2>
+            <div class="options">
+              <div class="option">
+                <input type="radio" id="q1-1" name="q1" value="오후 9시 이전" />
+                <label for="q1-1">오후 9시 이전</label>
+              </div>
+              <div class="option">
+                <input type="radio" id="q1-2" name="q1" value="오후 9시~10시" />
+                <label for="q1-2">오후 9시~10시</label>
+              </div>
+              <div class="option">
+                <input type="radio" id="q1-3" name="q1" value="오후 10시~11시" />
+                <label for="q1-3">오후 10시~11시</label>
+              </div>
+              <div class="option">
+                <input type="radio" id="q1-4" name="q1" value="오후 11시~자정" />
+                <label for="q1-4">오후 11시~자정</label>
+              </div>
+              <div class="option">
+                <input type="radio" id="q1-5" name="q1" value="자정~오전 1시" />
+                <label for="q1-5">자정~오전 1시</label>
+              </div>
+              <div class="option">
+                <input type="radio" id="q1-6" name="q1" value="오전 1시 이후" />
+                <label for="q1-6">오전 1시 이후</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="question">
+            <div class="question-number">QUESTION 02</div>
+            <h2 class="question-title">평균 수면시간은 얼마인가요?</h2>
+            <div class="options">
+              <div class="option">
+                <input type="radio" id="q2-1" name="q2" value="5시간 미만" />
+                <label for="q2-1">5시간 미만</label>
+              </div>
+              <div class="option">
+                <input type="radio" id="q2-2" name="q2" value="5~6시간" />
+                <label for="q2-2">5~6시간</label>
+              </div>
+              <div class="option">
+                <input type="radio" id="q2-3" name="q2" value="6~7시간" />
+                <label for="q2-3">6~7시간</label>
+              </div>
+              <div class="option">
+                <input type="radio" id="q2-4" name="q2" value="7~8시간" />
+                <label for="q2-4">7~8시간</label>
+              </div>
+              <div class="option">
+                <input type="radio" id="q2-5" name="q2" value="8~9시간" />
+                <label for="q2-5">8~9시간</label>
+              </div>
+              <div class="option">
+                <input type="radio" id="q2-6" name="q2" value="9시간 이상" />
+                <label for="q2-6">9시간 이상</label>
+              </div>
+            </div>
+          </div>
+
+          <div id="errorMessage" class="error">두 질문에 모두 답해주세요.</div>
+          <div class="submit-row">
+            <button type="submit">설문 제출하고 결과 보기</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="resultSection" class="card" aria-live="polite">
+        <div class="result-head">
+          <h2>응답 결과</h2>
+          <p>이번에 선택한 답변이 그래프의 해당 항목에 1표로 표시됩니다.</p>
+        </div>
+        <div id="selectedSummary" class="selected-summary"></div>
+        <div class="charts">
+          <div class="chart-card">
+            <h3 id="chartTitle1">QUESTION 01</h3>
+            <div id="chart1" class="bar-list"></div>
+          </div>
+          <div class="chart-card">
+            <h3 id="chartTitle2">QUESTION 02</h3>
+            <div id="chart2" class="bar-list"></div>
+          </div>
+        </div>
+        <div class="result-actions">
+          <button id="editButton" class="secondary" type="button">답변 수정</button>
+          <button id="resetButton" type="button">결과 초기화</button>
+        </div>
+      </section>
+    </main>
+
+    <footer>GitHub Pages에서 바로 사용할 수 있는 단일 HTML 설문 페이지</footer>
+  </div>
+
+  <script>
+    /* =========================================================
+       질문/보기 수정 영역
+       질문이나 보기를 바꾸고 싶다면 아래 CONFIG만 수정하세요.
+       ========================================================= */
+    const CONFIG = {
+      questions: [
+        {
+          title: "평소 몇 시에 잠에 드나요?",
+          options: ["오후 9시 이전", "오후 9시~10시", "오후 10시~11시", "오후 11시~자정", "자정~오전 1시", "오전 1시 이후"]
+        },
+        {
+          title: "평균 수면시간은 얼마인가요?",
+          options: ["5시간 미만", "5~6시간", "6~7시간", "7~8시간", "8~9시간", "9시간 이상"]
+        }
+      ]
+    };
+
+    const STORAGE_KEY = "twoQuestionSurveyResults";
+    const form = document.getElementById("surveyForm");
+    const resultSection = document.getElementById("resultSection");
+    const errorMessage = document.getElementById("errorMessage");
+
+    function initialResults() {
+      return CONFIG.questions.map(q =>
+        Object.fromEntries(q.options.map(option => [option, 0]))
+      );
+    }
+
+    function getResults() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (!Array.isArray(saved) || saved.length !== CONFIG.questions.length) return initialResults();
+        return CONFIG.questions.map((q, i) => {
+          const base = Object.fromEntries(q.options.map(option => [option, 0]));
+          for (const option of q.options) {
+            const value = Number(saved[i]?.[option]);
+            base[option] = Number.isFinite(value) && value >= 0 ? value : 0;
+          }
+          return base;
+        });
+      } catch {
+        return initialResults();
+      }
+    }
+
+    function saveResults(results) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
+    }
+
+    function renderChart(elementId, results, options) {
+      const root = document.getElementById(elementId);
+      root.innerHTML = "";
+      const total = options.reduce((sum, option) => sum + (results[option] || 0), 0);
+      const max = Math.max(1, ...options.map(option => results[option] || 0));
+
+      options.forEach(option => {
+        const count = results[option] || 0;
+        const percent = total === 0 ? 0 : Math.round((count / total) * 100);
+        const row = document.createElement("div");
+        row.innerHTML = `
+          <div class="bar-label">
+            <span>${escapeHtml(option)}</span>
+            <span>${count}표 · ${percent}%</span>
+          </div>
+          <div class="bar-track" aria-label="${escapeHtml(option)} ${percent}%">
+            <div class="bar-fill" style="width:${(count / max) * 100}%"></div>
+          </div>
+        `;
+        root.appendChild(row);
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderResults(selectedAnswers = null) {
+      const results = getResults();
+      document.getElementById("chartTitle1").textContent = CONFIG.questions[0].title;
+      document.getElementById("chartTitle2").textContent = CONFIG.questions[1].title;
+      renderChart("chart1", results[0], CONFIG.questions[0].options);
+      renderChart("chart2", results[1], CONFIG.questions[1].options);
+
+      if (selectedAnswers) {
+        document.getElementById("selectedSummary").innerHTML =
+          `내 답변: <strong>${escapeHtml(selectedAnswers[0])}</strong> · <strong>${escapeHtml(selectedAnswers[1])}</strong>`;
+      }
+      resultSection.style.display = "block";
+      resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const q1 = form.querySelector('input[name="q1"]:checked');
+      const q2 = form.querySelector('input[name="q2"]:checked');
+
+      if (!q1 || !q2) {
+        errorMessage.style.display = "block";
+        return;
+      }
+
+      errorMessage.style.display = "none";
+      const results = getResults();
+      results[0][q1.value] += 1;
+      results[1][q2.value] += 1;
+      saveResults(results);
+      renderResults([q1.value, q2.value]);
+    });
+
+    document.getElementById("editButton").addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      resultSection.style.display = "none";
+    });
+
+    document.getElementById("resetButton").addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_KEY);
+      renderResults();
+      document.getElementById("selectedSummary").innerHTML = "저장된 응답 결과를 초기화했습니다.";
+    });
+
+    // 기존 브라우저 저장 응답이 있으면 결과 영역을 바로 표시합니다.
+    const hasSavedData = localStorage.getItem(STORAGE_KEY);
+    if (hasSavedData) renderResults();
+  </script>
+</body>
+</html>
